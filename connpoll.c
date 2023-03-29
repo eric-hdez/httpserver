@@ -8,7 +8,7 @@ connpoll_t *connpoll_create(ssize_t size) {
     }
 
     connpoll_t *cpoll = (connpoll_t *) malloc(sizeof(connpoll_t));
-    if (cpoll == NULL) {
+    if (!cpoll) {
         return NULL;
     }
 
@@ -19,7 +19,7 @@ connpoll_t *connpoll_create(ssize_t size) {
     }
 
     cpoll->events = (struct epoll_event *) calloc(size, sizeof(struct epoll_event));
-    if (cpoll->events == NULL) {
+    if (!cpoll->events) {
         free(cpoll);
         return NULL;
     }
@@ -29,7 +29,7 @@ connpoll_t *connpoll_create(ssize_t size) {
 }
 
 void connpoll_destroy(connpoll_t **cpoll) {
-    if (*cpoll != NULL && cpoll != NULL) {
+    if (*cpoll && cpoll) {
         close((*cpoll)->epollfd);
         free((*cpoll)->events);
         free(*cpoll);
@@ -42,12 +42,22 @@ bool add_connection(connpoll_t *cpoll, int connfd, int flags) {
     ev.events = flags;
     ev.data.fd = connfd;
 
-    int ret = epoll_ctl(cpoll->epollfd, EPOLL_CTL_ADD, connfd, &ev);
-    if (ret < 0) {
+    int status = epoll_ctl(cpoll->epollfd, EPOLL_CTL_ADD, connfd, &ev);
+    if (status < 0) {
         return false;
     }
 
     cpoll->size += 1;
+    return true;
+}
+
+bool delete_connection(connpoll_t *cpoll, int connfd) {
+    int status = epoll_ctl(cpoll->epollfd, EPOLL_CTL_DEL, connfd, NULL);
+    if (status < 0) {
+        return false;
+    }
+
+    cpoll->size -= 1;
     return true;
 }
 
@@ -57,21 +67,10 @@ ssize_t poll_connections(connpoll_t *cpoll) {
 }
 
 bool yield_connection(connpoll_t *cpoll, int *connfd) {
-    while (cpoll->iter < cpoll->readyfds) {
-        *connfd = cpoll->events[cpoll->iter].data.fd;
-        cpoll->iter += 1;
+    if (cpoll->iter < cpoll->readyfds) {
+        *connfd = cpoll->events[cpoll->iter++].data.fd;
         return true;
     }
 
     return false;
-}
-
-bool delete_connection(connpoll_t *cpoll, int connfd) {
-    int ret = epoll_ctl(cpoll->epollfd, EPOLL_CTL_DEL, connfd, NULL);
-    if (ret < 0) {
-        return false;
-    }
-
-    cpoll->size -= 1;
-    return true;
 }
