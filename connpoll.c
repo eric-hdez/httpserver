@@ -47,7 +47,7 @@ bool add_connection(connpoll_t *cpoll, int connfd, int flags) {
         return false;
     }
 
-    cpoll->size += 1;
+    cpoll->size++;
     return true;
 }
 
@@ -57,7 +57,7 @@ bool delete_connection(connpoll_t *cpoll, int connfd) {
         return false;
     }
 
-    cpoll->size -= 1;
+    cpoll->size--;
     return true;
 }
 
